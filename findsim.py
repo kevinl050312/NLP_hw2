@@ -101,8 +101,8 @@ class Lexicon:
         # FINISH THIS FUNCTION
         self.vocab = None           # an Integerizer object based on a list of the words in the lexicon
         self.nwords = None          # number of words in the file
-        self.matrix_t = None        # The embedding matrix in tensor form
-        self.matrix_l = None        # The embedding matrix in list form
+        self.matrix = None        # The embedding matrix in tensor form
+        # self.matrix_l = None        # The embedding matrix in list form
         self.from_file(lexicon_file)
 
         # Store your stuff! Both the word-index mapping and the embedding matrix.
@@ -129,8 +129,8 @@ class Lexicon:
                 embedlist.append([float(i) for i in splitline[1:]])
 
         # lexicon = Lexicon() Maybe put args here. Maybe follow Builder pattern.
-        cls.matrix_l = embedlist
-        cls.matrix_t = th.tensor(embedlist)
+        # cls.matrix_l = embedlist
+        cls.matrix = th.tensor(embedlist)
         cls.vocab = Integerizer(wordlist)  # does this need to be a tensor as well?
         cls.nwords = len(cls.vocab)
 
@@ -156,22 +156,22 @@ class Lexicon:
         # in this function, you've probably made a mistake.
         cos1 = nn.CosineSimilarity(dim=1)           # initialize cosine similarity function, compares rows
         word_idx = self.vocab.index(word)
-        word_embed = self.matrix_l[word_idx]
+        word_embed = self.matrix[word_idx]
 
         # If we are given minus and plus, get the embeddings for those words and add/subtract from first word
         if minus and plus:
             plus_idx = self.vocab.index(plus)
             minus_idx = self.vocab.index(minus)
-            plus_embed = self.matrix_l[plus_idx]
-            minus_embed = self.matrix_l[minus_idx]
+            plus_embed = self.matrix[plus_idx]
+            minus_embed = self.matrix[minus_idx]
 
-            word_embed = np.add(np.subtract(word_embed, minus_embed), plus_embed)
+            word_embed = th.add(th.subtract(word_embed, minus_embed), plus_embed)
 
         # Approach: map operation to whole tensor, then call min on generated cosine values
         # define a matrix with every row the given word's embedding and call cos on that and full matrix
         # need to define vector of the given word then apply the cosine similarity formula to every other row of the tensor
-        oneword_matrix = th.tensor([word_embed for i in range(self.nwords)])
-        sim_vals = cos1(oneword_matrix, self.matrix_t)          # This is a tensor already
+        oneword_matrix = word_embed.repeat(self.nwords, 1)
+        sim_vals = cos1(oneword_matrix, self.matrix)          # This is a tensor already
 
         [top_vals, top_idxs] = th.topk(sim_vals, 11)
         top_idxs = top_idxs.tolist()[1:]
