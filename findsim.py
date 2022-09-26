@@ -159,9 +159,10 @@ class Lexicon:
         word_embed = self.matrix[word_idx]
 
         # If we are given minus and plus, get the embeddings for those words and add/subtract from first word
-        if minus and plus:
+        if plus and minus:
             plus_idx = self.vocab.index(plus)
             minus_idx = self.vocab.index(minus)
+            remove_idxs = [word_idx, plus_idx, minus_idx]
             plus_embed = self.matrix[plus_idx]
             minus_embed = self.matrix[minus_idx]
 
@@ -171,12 +172,27 @@ class Lexicon:
         # define a matrix with every row the given word's embedding and call cos on that and full matrix
         # need to define vector of the given word then apply the cosine similarity formula to every other row of the tensor
         oneword_matrix = word_embed.repeat(self.nwords, 1)
-        sim_vals = cos1(oneword_matrix, self.matrix)          # This is a tensor already
+        sim_vals = cos1(oneword_matrix, self.matrix)            # This is a tensor already
 
-        [top_vals, top_idxs] = th.topk(sim_vals, 11)
-        top_idxs = top_idxs.tolist()[1:]
+        if plus and minus:
+            # Case with plus/minus
+            # Get indices of top 13 similarity scores, remove indices of the three words, get top 10 of remaining
+            [top_vals, top_idxs] = th.topk(sim_vals, 13)
+            top_idxs = top_idxs.tolist()
+            for i in top_idxs:
+                for j in remove_idxs:
+                    if i==j:
+                        top_idxs.remove(i)
+            top_idxs = top_idxs[:10]
+        else:
+            # Case without plus/minus
+            # Get indices of top 11 similarity scores, exclude 0th since it will be the input word
+            [top_vals, top_idxs] = th.topk(sim_vals, 11)
+            top_idxs = top_idxs.tolist()[1:]
 
-        return [self.vocab[i] for i in top_idxs]
+        sim_words = [self.vocab[i] for i in top_idxs]
+
+        return sim_words
 
 
 def format_for_printing(word_list: List[str]) -> str:
